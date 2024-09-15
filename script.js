@@ -1,8 +1,30 @@
 // Constants
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+
+// Adjust canvas size based on device
+function adjustCanvasSize() {
+    const container = document.getElementById('game-container');
+    const canvasWidth = container.clientWidth * 0.7; // 70% of container for canvas
+    canvas.width = canvasWidth;
+    canvas.height = canvasWidth; // Maintain square aspect ratio
+}
+
+// Initial canvas size adjustment
+adjustCanvasSize();
+
+// Update TOKEN_SIZE whenever canvas size changes
+let TOKEN_SIZE = canvas.width / GRID_SIZE;
+
+// Update canvas size on window resize
+window.addEventListener('resize', () => {
+    adjustCanvasSize();
+    TOKEN_SIZE = canvas.width / GRID_SIZE;
+    render();
+});
+
+// Game Constants
 const GRID_SIZE = 9;
-const TOKEN_SIZE = canvas.width / GRID_SIZE;
 const COLORS = ['#f1c40f', '#e74c3c', '#2ecc71', '#3498db', '#9b59b6', '#e67e22']; // Different colors for tokens
 const TOKEN_TYPES = ['Bitcoin', 'Ethereum', 'Solana', 'Dogecoin', 'Litecoin', 'Ripple'];
 
@@ -11,7 +33,7 @@ let grid = [];
 let selectedToken = null;
 let score = 0;
 let movesLeft = 30;
-let objective = 1000;
+const objective = 1000;
 let gameOver = false;
 
 // In-Game Currency
@@ -40,7 +62,7 @@ class Token {
 
         // Draw the token label
         ctx.fillStyle = '#fff';
-        ctx.font = '16px Arial';
+        ctx.font = `${TOKEN_SIZE / 3}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(TOKEN_TYPES[this.type].substring(0, 3), this.x * TOKEN_SIZE + TOKEN_SIZE / 2, this.y * TOKEN_SIZE + TOKEN_SIZE / 2);
@@ -48,7 +70,7 @@ class Token {
         // Draw special indicators if applicable
         if (this.isSpecial) {
             ctx.fillStyle = '#fff';
-            ctx.font = '14px Arial';
+            ctx.font = `${TOKEN_SIZE / 4}px Arial`;
             let symbol = '';
             switch (this.specialType) {
                 case 'CoinBomb':
@@ -61,7 +83,7 @@ class Token {
                     symbol = 'E';
                     break;
             }
-            ctx.fillText(symbol, this.x * TOKEN_SIZE + TOKEN_SIZE - 15, this.y * TOKEN_SIZE + 15);
+            ctx.fillText(symbol, this.x * TOKEN_SIZE + TOKEN_SIZE - TOKEN_SIZE / 6, this.y * TOKEN_SIZE + TOKEN_SIZE - TOKEN_SIZE / 6);
         }
 
         // Draw token border
@@ -271,7 +293,7 @@ function processMatches(matches) {
             processMatches(newMatches);
             updateUI();
             render();
-        }, 500);
+        }, 500); // Delay for visual effect
     }
 }
 
@@ -299,9 +321,11 @@ function determineSpecialTokens(matches) {
             if (xs[i] === xs[i - 1] + 1) {
                 count++;
                 if (count === 4) {
+                    // Create CoinBomb
                     specialTokens.push({x: xs[i], y: parseInt(y), type: 'CoinBomb'});
                 }
                 if (count === 5) {
+                    // Create TokenMiner
                     specialTokens.push({x: xs[i], y: parseInt(y), type: 'TokenMiner'});
                 }
             } else {
@@ -318,9 +342,11 @@ function determineSpecialTokens(matches) {
             if (ys[i] === ys[i - 1] + 1) {
                 count++;
                 if (count === 4) {
+                    // Create CoinBomb
                     specialTokens.push({x: parseInt(x), y: ys[i], type: 'CoinBomb'});
                 }
                 if (count === 5) {
+                    // Create TokenMiner
                     specialTokens.push({x: parseInt(x), y: ys[i], type: 'TokenMiner'});
                 }
             } else {
@@ -328,6 +354,23 @@ function determineSpecialTokens(matches) {
             }
         }
     });
+
+    // Detect T-shaped or L-shaped matches for CryptoExploder (Advanced)
+    // Note: This implementation is simplified and may not cover all cases
+    // For full detection, more complex pattern recognition is required
+    // Here, we assume that if a token is part of both a horizontal and vertical match, it's the center of a T-shape
+    for (let x = 0; x < GRID_SIZE; x++) {
+        for (let y = 0; y < GRID_SIZE; y++) {
+            if (matches.some(m => m.x === x && m.y === y)) {
+                // Check if the token is part of both a horizontal and vertical match
+                let horizontal = rowGroups[y] && rowGroups[y].length >= 3 && rowGroups[y].includes(x);
+                let vertical = colGroups[x] && colGroups[x].length >= 3 && colGroups[x].includes(y);
+                if (horizontal && vertical) {
+                    specialTokens.push({x: x, y: y, type: 'CryptoExploder'});
+                }
+            }
+        }
+    }
 
     // Remove duplicate special tokens
     specialTokens = specialTokens.filter((v, i, a) => a.findIndex(t => (t.x === v.x && t.y === v.y && t.type === v.type)) === i);
